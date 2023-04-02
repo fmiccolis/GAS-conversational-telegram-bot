@@ -68,6 +68,10 @@ class TelegramBot {
     return result;
   }
 
+  getValuesBySheetName(sheet_name) {
+    return this.getValuesBySheet(this.spreadsheet.getSheetByName(sheet_name));
+  }
+
   getReceivedMessages() {
     return this.getValuesBySheet(this.received);
   }
@@ -185,7 +189,7 @@ class TelegramBot {
     delete copy_message["from"];
     delete copy_message["chat"];
     delete copy_message["date"];
-    this.logReceived([message.date, JSON.stringify(message.chat, null, 2), JSON.stringify(message.from, null, 2), JSON.stringify(copy_message, null, 2)]);
+    this.logReceived([message.date, JSON.stringify(message.chat), JSON.stringify(message.from), JSON.stringify(copy_message)]);
 
     // do something when there are photos, videos or documents
     //if(message.photo) this.savePhotoOnDrive(message);
@@ -206,7 +210,7 @@ class TelegramBot {
 
     var [last] = this_message_conversation.slice(-1);
     if(new Date().getTime() > last.data + 900000) return null;
-
+    
     return last;
   }
 
@@ -223,7 +227,7 @@ class TelegramBot {
     var chat_id = message.chat.id;
     var user_id = message.from.id;
     var data = new Date().getTime();
-    this.logConversation([data, chat_id, user_id, JSON.stringify(payload, null, 2)]);
+    this.logConversation([data, chat_id, user_id, JSON.stringify(payload)]);
   }
 
   updateConversation(conversation_data, message, position) {
@@ -239,12 +243,35 @@ class TelegramBot {
     payload.data[position].completed = true;
 
     this.conversation.getRange(row_id, date_index).setValue(new Date().getTime())
-    this.conversation.getRange(row_id, payload_index).setValue(JSON.stringify(payload, null, 2))
+    this.conversation.getRange(row_id, payload_index).setValue(JSON.stringify(payload))
     return payload;
   }
 
   deleteConversation(conversation) {
     this.conversation.deleteRow(conversation.row_id);
+  }
+
+  static generateRange(elements = 0) {
+    var list = [];
+    for(let i = 0; i<elements; i++) {
+      list.push(i);
+    }
+    return list;
+  }
+
+  static addReplyKeyboardMarkup(elements = []) {
+    if(elements.length === 0) return null;
+    return JSON.stringify({keyboard: elements})
+  }
+
+  static addInlineKeyboardMarkup(elements = []) {
+    if(elements.length === 0) return null;
+
+    return JSON.stringify({inline_keyboard: elements})
+  }
+
+  static addReplyKeyboardRemove() {
+    return JSON.stringify({remove_keyboard: true});
   }
 
   /**
@@ -253,7 +280,7 @@ class TelegramBot {
    * @param {string} text - Text of the message to be sent.
    * @returns {Object} Result of the sendMessage API call.
    */
-  sendMessage(id, text) {
+  sendMessage(id, text, keyboard = null) {
     var data = {
       method: "post",
       payload: {
@@ -261,6 +288,7 @@ class TelegramBot {
         chat_id: String(id),
         text: text,
         parse_mode: "HTML",
+        reply_markup: keyboard
       }
     };
     var {result} = JSON.parse(UrlFetchApp.fetch(this.telegramUrl + '/', data).getContentText());
@@ -270,7 +298,7 @@ class TelegramBot {
     delete copy_message["from"];
     delete copy_message["chat"];
     delete copy_message["date"];
-    this.logSent([new Date(), chat_id, message_id, JSON.stringify(copy_message, null, 2)])
+    this.logSent([new Date(), chat_id, message_id, JSON.stringify(copy_message)])
     return result;
   }
 
