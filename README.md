@@ -56,7 +56,7 @@ The command handler is a function that is called when the user write a command t
   * `message`: the message in the sense of the object we receive from telegram (see this [link](https://core.telegram.org/bots/api#message))
 
 Here is an example of a command handler:
-```
+```js
 const start = function(bot, params, message) {
 	bot.sendMessage(message.chat.id, "Hi " + message.from.first_name + "!\nThis is the starting message from the bot, an example bot used to learn how to host telegram bot code inside Google App Script.\nTo see all the commands available use /help");
 }
@@ -70,7 +70,7 @@ The conversation handler is an object consisting of 4 properties defined as foll
   * `fallback`: an object like a small command handler that is used to stop and cancel the current conversation. This object is composed of command (string) and handler (function)
 
 Here is an example of a conversation handler:
-```
+```js
 {
 	entry: newConversation,
 	states: [
@@ -94,7 +94,7 @@ The bot provides a function called addHandler that takes 4 parameters in input:
   * `callback`: a function in the case of command handler or an object in the case of conversation handler
 
 Here is an example of adding an handler:
-```
+```js
 BOT.addHandler("/help", "View all commands you can use", "command", help);
 
 BOT.addHandler("/conv", "start a conversation", "conversation", {
