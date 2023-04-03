@@ -126,7 +126,24 @@ class TelegramBot {
   }
 
   dispatcher(request) {
+    var callback_query = request.callback_query;
     var message = request.message;
+    if(callback_query) {
+      message = callback_query.message;
+      var callback_data = callback_query.data;
+      var handler_object = {}
+      for(let command in this.handlers) {
+        if(this.handlers[command].type !== "callback_query") continue;
+        if(callback_data.includes(command)) {
+          handler_object = this.handlers[command];
+          break;
+        }
+      }
+      if(handler_object) {
+        handler_object.callback(this, callback_data, callback_query);
+        return;
+      }
+    }
     var text = message.text;
     var entities = message.entities;
     var command = "";
@@ -300,6 +317,17 @@ class TelegramBot {
     delete copy_message["date"];
     this.logSent([new Date(), chat_id, message_id, JSON.stringify(copy_message)])
     return result;
+  }
+
+  answerCallbackQuery(callback_query_id) {
+    var data = {
+      method: "post",
+      payload: {
+        method: "answerCallbackQuery",
+        callback_query_id: callback_query_id
+      }
+    };
+    JSON.parse(UrlFetchApp.fetch(this.telegramUrl + '/', data).getContentText());
   }
 
   /**
