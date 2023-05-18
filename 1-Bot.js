@@ -39,6 +39,10 @@ class TelegramBot {
     conversation_sheet.appendRow(["date", "chat_id", "user_id", "payload"]);
   }
 
+  firstLaunch() {
+    this.sendMessageToDevs("The bot is working!");
+  }
+
   logReceived(row) {
     this.received.appendRow(row);
   }

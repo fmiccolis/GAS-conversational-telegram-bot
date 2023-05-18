@@ -25,6 +25,10 @@ function doPost(e) {
   BOT.dispatcher(JSON.parse(e.postData.contents));
 }
 
+function initializeBot() {
+  BOT.firstLaunch();
+}
+
 function generateEntities(text = "") {
   let count = (text.match(/\//g) || []).length;
   if(count === 0) return null;

@@ -29,22 +29,26 @@ Thanks to the power of Google services all linked together, GAS-conversational-t
 
 3. Write down the bot Token
 
-4. Open your Google Account and go to Google Drive
+4. Send a /start message to the bot (It won't respond but it creates a new conversation)
 
-5. Create a folder named as your telegram bot
+5. Open your Google Account and go to Google Drive
 
-6. Inside the folder create a Google Spreadsheet and write down the spreadsheetId that you can get from the url (https://docs.google.com/spreadsheets/d/*spreadsheetId*/edit)
+6. Create a folder named as your telegram bot
 
-7. Open up the spreadsheet and go to Extensions -> App Script. This will open the app script editor
+7. Inside the folder create a Google Spreadsheet and write down the spreadsheetId that you can get from the url (https://docs.google.com/spreadsheets/d/*spreadsheetId*/edit)
 
-8. Delete the default .gs file and copy/paste each file in this repository (1-Bot.gs, 2-handlers.gs and 3-main.gs) and save all
-> Note that the numbers in fron of each file name are used by App Script for correct ordering during deployment.
-9. Click on "execute deployment" -> "new deployment" and choose "web app" as type, "execute as me" and "everyone can access". Click on execute deployment and keep from the result url the webAppId (https://script.google.com/macros/s/*webAppId*/exec) 
-10.  Go to "project settings" and add 4 script properties, then save:
+8. Open up the spreadsheet and go to Extensions -> App Script. This will open the app script editor
+
+9. Delete the default .gs file and copy/paste each file in this repository (1-Bot.gs, 2-handlers.gs and 3-main.gs) and save all
+> Note that the numbers in front of each file name are used by App Script for correct ordering during deployment.
+10. Click on "execute deployment" -> "new deployment" and choose "web app" as type, "execute as me" and "everyone can access". Click on execute deployment and keep from the result url the webAppId (https://script.google.com/macros/s/*webAppId*/exec) 
+11.  Go to "project settings" and add 4 script properties, then save:
   * `botToken`=the value that you keep from point 3
   * `devList`=a comma separated text of telegramIds of the developers of the bot (you can get yours by interrogating [@userinfobot](https://t.me/userinfobot) )
-  * `spreadsheetId`=the value that you keep from point 6
-  * `webAppId`=the value that you keep from point 9
+  * `spreadsheetId`=the value that you keep from point 7
+  * `webAppId`=the value that you keep from point 10
+
+12. From the Google App Script editor run the function `initializeBot()`
 
 Congratulations! You have started your first conversational bot!
 
