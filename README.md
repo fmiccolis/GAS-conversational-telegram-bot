@@ -1,129 +1,313 @@
+# Google Apps Script — Conversational Telegram Bot
 
-# Google App Script Conversational Telegram Bot
+A conversational Telegram bot hosted on Google Apps Script, available 24/7 at no cost.
 
-  
+Thanks to the integration between Google services, the bot supports multi-step conversations in both private chats and groups. Setup is fast and requires no external server.
 
-A conversational bot hosted on Google App script for free available 24/7.
-
-  
-
-Thanks to the power of Google services all linked together, GAS-conversational-telegram-bot support conversation in private chats and groups. It's implementation is easy and fast.
-
-  
+---
 
 ## Prerequisites
 
-1. Google Account
+- Google Account
+- Telegram Account
+- Basic knowledge of JavaScript
 
-2. Telegram Account
+---
 
-3. Knowing Javascript
+## Installation
 
-  
+1. Open Telegram and search for [@BotFather](https://t.me/BotFather). Create a new bot and note down the **token**.
+2. Send a `/start` message to your bot (it won't reply, but it initialises the conversation on Telegram's side).
+3. In Google Drive, create a folder named after your bot and inside it create a **Google Spreadsheet**. Note down the `spreadsheetId` from the URL: `https://docs.google.com/spreadsheets/d/<spreadsheetId>/edit`.
+4. Open the spreadsheet and go to **Extensions → Apps Script** to open the editor.
+5. Delete the default `.gs` file and paste the content of each file in this repository in the following order (the numbers in the filenames ensure correct loading order at deployment):
+   - `1-GSTable.gs`
+   - `2-TelegramModels.gs`
+   - `3-Bot.gs`
+   - `4-handlers.gs`
+   - `5-main.gs`
+6. Click **Deploy → New deployment**. Choose **Web app** as the type, set *Execute as:* **Me** and *Who has access:* **Anyone**. Confirm and note the `webAppId` from the resulting URL: `https://script.google.com/macros/s/<webAppId>/exec`.
+7. Go to **Project settings → Script properties** and add the following four properties:
 
-## Installation Guide
+   | Property       | Value                                                                                                          |
+   |----------------|----------------------------------------------------------------------------------------------------------------|
+   | `botToken`     | The token from step 1                                                                                          |
+   | `devList`      | Comma-separated list of developer Telegram IDs (use [@userinfobot](https://t.me/userinfobot) to get yours)    |
+   | `spreadsheetId`| The ID from step 3                                                                                             |
+   | `webAppId`     | The ID from step 6                                                                                             |
 
-1. Open telegram and search for [@BotFather](https://t.me/BotFather)
+8. From the Apps Script editor, run the function `initializeBot()`.
 
-2. Ask to create a new bot and follow the steps
+Your conversational bot is now live.
 
-3. Write down the bot Token
+---
 
-4. Send a /start message to the bot (It won't respond but it creates a new conversation)
+## How it works
 
-5. Open your Google Account and go to Google Drive
+### Architecture
 
-6. Create a folder named as your telegram bot
+The project is split into five files, each with a single responsibility:
 
-7. Inside the folder create a Google Spreadsheet and write down the spreadsheetId that you can get from the url (https://docs.google.com/spreadsheets/d/*spreadsheetId*/edit)
+| File                  | Responsibility                                                                  |
+|-----------------------|---------------------------------------------------------------------------------|
+| `1-GSTable.gs`        | Google Sheets ORM: reads, writes, and caches sheet headers                      |
+| `2-TelegramModels.gs` | Data models: `ReceivedMessage`, `SentMessage`, `Conversation`                   |
+| `3-Bot.gs`            | Bot core: dispatcher, conversation routing, Telegram API calls                  |
+| `4-handlers.gs`       | Application handlers: commands, conversations, error handler                    |
+| `5-main.gs`           | Entry point: `doPost()` and `initializeBot()`                                  |
 
-8. Open up the spreadsheet and go to Extensions -> App Script. This will open the app script editor
+Every incoming message follows this path:
 
-9. Delete the default .gs file and copy/paste each file in this repository (1-Bot.gs, 2-handlers.gs and 3-main.gs) and save all
-> Note that the numbers in front of each file name are used by App Script for correct ordering during deployment.
-10. Click on "execute deployment" -> "new deployment" and choose "web app" as type, "execute as me" and "everyone can access". Click on execute deployment and keep from the result url the webAppId (https://script.google.com/macros/s/*webAppId*/exec) 
-11.  Go to "project settings" and add 4 script properties, then save:
-  * `botToken`=the value that you keep from point 3
-  * `devList`=a comma separated text of telegramIds of the developers of the bot (you can get yours by interrogating [@userinfobot](https://t.me/userinfobot) )
-  * `spreadsheetId`=the value that you keep from point 7
-  * `webAppId`=the value that you keep from point 10
+```
+Telegram → doPost() → bot.dispatcher() → _main()
+                                            ├─ active conversation → _continueConversation()
+                                            └─ no conversation    → _dispatchCommand()
+```
 
-12. From the Google App Script editor run the function `initializeBot()`
+---
 
-Congratulations! You have started your first conversational bot!
+### Command handler
 
-## But how it works?
-### The command handler
-The command handler is a function that is called when the user write a command to the bot. It takes in input 3 parameters and does not return anything:
-  * `bot`: the bot itself. You can use all the function of the bot such as 'sendMessage'
-  * `params`: if the user send a command with a space separate text, the params is valued with text after the command (e.g. /command 1234 <- 1234 is the params)
-  * `message`: the message in the sense of the object we receive from telegram (see this [link](https://core.telegram.org/bots/api#message))
+A command handler is a function invoked when the user sends a command to the bot.
 
-Here is an example of a command handler:
+**Signature:** `(bot, params, message) → void`
+
+| Parameter | Type          | Description                                                                                              |
+|-----------|---------------|----------------------------------------------------------------------------------------------------------|
+| `bot`     | `TelegramBot` | The bot instance. Exposes `sendMessage`, `sendPhoto`, `editMessageText`, etc.                            |
+| `params`  | `string`      | Text after the command (e.g. `/start 1234` → `params = "1234"`). Empty string if absent.                |
+| `message` | `Object`      | Raw Telegram message object. See the [official docs](https://core.telegram.org/bots/api#message).        |
+
 ```js
-const start = function(bot, params, message) {
-	bot.sendMessage(message.chat.id, "Hi " + message.from.first_name + "!\nThis is the starting message from the bot, an example bot used to learn how to host telegram bot code inside Google App Script.\nTo see all the commands available use /help");
+const startHandler = (bot, params, message) => {
+  bot.sendMessage(
+    message.chat.id,
+    `Hello <b>${message.from.first_name}</b>! Type /help to see all available commands.`
+  );
+};
+```
+
+---
+
+### Conversation handler
+
+A conversation handler is an object that manages a multi-step flow. The user's answers are collected step by step and processed together at the end.
+
+**Structure:**
+
+| Property   | Type       | Description                                                                                        |
+|------------|------------|----------------------------------------------------------------------------------------------------|
+| `entry`    | `Function` | Called once when the conversation starts. Signature: `(bot, params, message) → void`.             |
+| `states`   | `Array`    | Ordered array of steps. Each element has a `type` (`"text"` or `"image"`) and a `handler`.        |
+| `final`    | `Function` | Called after all steps complete successfully. Signature: `(bot, payload, message) → void`.        |
+| `fallback` | `Object`   | Command that interrupts the conversation. Has two fields: `command` (string) and `handler` (function). |
+
+#### Step handler contract
+
+Every function at `states[N].handler` receives `(bot, conversation, message)` and **must return a number**:
+
+- `N` → invalid input; stays on the same step (e.g. validation failed)
+- `N + 1` → input accepted; advances to the next step
+- `states.length` → last step completed; triggers `final`
+
+> ⚠️ Forgetting the `return` statement in a step handler throws an explicit error in the dispatcher.
+
+#### Payload structure in `final`
+
+```js
+payload.data = [
+  { type: "text",  value: "<user input>",  completed: true },
+  { type: "image", value: "<photo file_id>", completed: true },
+  // ...
+]
+```
+
+**Full example:**
+
+```js
+const reportHandler = {
+
+  entry(bot, params, message) {
+    bot.sendMessage(message.chat.id, "Send the report title:");
+  },
+
+  states: [
+    {
+      type: "text",
+      handler(bot, conversation, message) {
+        if (!message.text || message.text.length > 80) {
+          bot.sendMessage(message.chat.id, "Invalid title. Please try again:");
+          return 0;
+        }
+        bot.sendMessage(message.chat.id, "Now send the description:");
+        return 1;
+      },
+    },
+    {
+      type: "text",
+      handler(bot, conversation, message) {
+        if (!message.text) {
+          bot.sendMessage(message.chat.id, "Description cannot be empty. Try again:");
+          return 1;
+        }
+        bot.sendMessage(message.chat.id, "Almost done! Send a photo:");
+        return 2;
+      },
+    },
+    {
+      type: "image",
+      handler(bot, conversation, message) {
+        if (!message.photo) {
+          bot.sendMessage(message.chat.id, "Please send a photo, not text.");
+          return 2;
+        }
+        return 3; // equals states.length → triggers final
+      },
+    },
+  ],
+
+  fallback: {
+    command: "/cancel",
+    handler(bot, conversation, message) {
+      conversation.remove();
+      bot.sendMessage(message.chat.id, "❌ Report cancelled.");
+    },
+  },
+
+  final(bot, payload, message) {
+    const title       = payload.data[0].value;
+    const description = payload.data[1].value;
+    const photoFileId = payload.data[2].value;
+
+    bot.sendPhoto(message.chat.id, `✅ <b>${title}</b>\n${description}`, photoFileId);
+  },
+};
+```
+
+---
+
+### Registering handlers
+
+Use `bot.addHandler()` to register both command and conversation handlers. All handlers should be registered inside `registerHandlers()` in `4-handlers.gs`.
+
+**Signature:** `addHandler(command, description, type, callback)`
+
+| Parameter     | Type               | Description                                                              |
+|---------------|--------------------|--------------------------------------------------------------------------|
+| `command`     | `string`           | The command string (e.g. `"/start"`). Use `""` to catch plain text.      |
+| `description` | `string`           | Short description shown by `/help`.                                      |
+| `type`        | `string`           | `"command"` or `"callback_query"`.                                       |
+| `callback`    | `Function\|Object` | A function for command handlers; an object for conversation handlers.    |
+
+```js
+function registerHandlers(bot) {
+  bot.errorHandler = errorHandler;
+
+  // Simple command handlers
+  bot.addHandler("",        "Plain text fallback", "command", plainTextHandler);
+  bot.addHandler("/start",  "Start the bot",       "command", startHandler);
+  bot.addHandler("/help",   "Show commands",        "command", helpHandler);
+  bot.addHandler("/cancel", "Cancel operation",     "command", cancelHandler);
+
+  // Multi-step conversation handler
+  bot.addHandler("/report", "Submit a new report", "command", reportHandler);
 }
 ```
 
-### The conversation handler
-The conversation handler is an object consisting of 4 properties defined as follows:
-  * `entry`: The function that is called when starting a conversation
-  * `states`: An array of functions called in sequence that represents the current state of the conversation. Each state have to return the next position in the list in order to continue the conversation. But if there is an error on what the user has sent, you can return the current position and re-request a text from the user. Even the last state have to return the next position but the bot will handle it and call the 'final' function.
-  * `final`: The last function that is called after the last state function. Usually in this function you can process all the input received in the states function
-  * `fallback`: an object like a small command handler that is used to stop and cancel the current conversation. This object is composed of command (string) and handler (function)
+---
 
-Here is an example of a conversation handler:
+### KeyboardBuilder
+
+A utility object for building Telegram keyboard markup to pass as the third argument to `sendMessage` and `sendPhoto`.
+
+| Method                         | Description                                           |
+|--------------------------------|-------------------------------------------------------|
+| `KeyboardBuilder.reply(rows)`  | Custom reply keyboard (fixed buttons below the input) |
+| `KeyboardBuilder.inline(rows)` | Inline keyboard (buttons attached to the message)     |
+| `KeyboardBuilder.remove()`     | Removes any active reply keyboard                     |
+
 ```js
-{
-	entry: newConversation,
-	states: [
-		{type: "str", handler: addName},
-		{type: "date", handler: addStartDate},
-		{type: "date", handler: addEndDate}
-	],
-	final: endConversation,
-	fallback: {
-		command: "/cancel",
-		handler: cancel
-	}
-}
+// Reply keyboard
+bot.sendMessage(id, "Choose:", KeyboardBuilder.reply([["Yes", "No"]]));
+
+// Inline keyboard
+bot.sendMessage(id, "Action:", KeyboardBuilder.inline([
+  [{ text: "Confirm", callback_data: "confirm" }],
+  [{ text: "Cancel",  callback_data: "cancel"  }],
+]));
+
+// Remove keyboard
+bot.sendMessage(id, "Done!", KeyboardBuilder.remove());
 ```
 
-### How to add a new handler
-The bot provides a function called addHandler that takes 4 parameters in input:
-  * `command`: a string that starts the function or the conversation
-  * `description`: a brief description of the commands. Useful with the default /help handler to show the user all bot functions
-  * `type`: a string representing the type of the handler to be added (currently not in use)
-  * `callback`: a function in the case of command handler or an object in the case of conversation handler
+---
 
-Here is an example of adding an handler:
+### Callback query handler
+
+To handle inline button taps, register a handler of type `"callback_query"`. The callback receives `(bot, callbackData, callbackQuery)`.
+
 ```js
-BOT.addHandler("/help", "View all commands you can use", "command", help);
-
-BOT.addHandler("/conv", "start a conversation", "conversation", {
-	entry: newConversation,
-	states: [
-		{type: "str", handler: addName},
-		{type: "date", handler: addStartDate},
-		{type: "date", handler: addEndDate}
-	],
-	final: endConversation,
-	fallback: {
-		command: "/cancel",
-		handler: cancel
-	}
+bot.addHandler("confirm", "Confirm action", "callback_query", (bot, callbackData, callbackQuery) => {
+  bot.answerCallbackQuery(callbackQuery.id, "Confirmed!");
+  bot.editMessageText(
+    callbackQuery.message.chat.id,
+    callbackQuery.message.message_id,
+    "✅ Action confirmed."
+  );
 });
 ```
 
-## Pros and cons
+---
+
+### Error handler
+
+The error handler is called by the dispatcher whenever an unhandled exception is thrown inside any handler. Assign it to `bot.errorHandler` inside `registerHandlers()`.
+
+**Signature:** `(bot, error, request) → void`
+
+```js
+const errorHandler = (bot, error, request) => {
+  Logger.log(error.stack);
+
+  const chatId = request.message?.chat.id;
+  if (chatId) bot.sendMessage(chatId, "⚠️ An unexpected error occurred.");
+
+  bot.sendMessageToDevs(`🚨 ${error.message}\n<pre>${error.stack}</pre>`);
+};
+```
+
+---
+
+## Bot API — main methods
+
+| Method                                              | Description                                           |
+|-----------------------------------------------------|-------------------------------------------------------|
+| `sendMessage(chatId, text, keyboard?)`              | Sends an HTML text message                            |
+| `sendPhoto(chatId, caption, fileId, keyboard?)`     | Sends a photo with an HTML caption                    |
+| `editMessageText(chatId, msgId, text, keyboard?)`   | Edits a previously sent message                       |
+| `deleteMessage(chatId, msgId)`                      | Deletes a message                                     |
+| `answerCallbackQuery(queryId, text?)`               | Dismisses the loading spinner on an inline button     |
+| `sendMessageToDevs(text)`                           | Sends a message to all developers in `devList`        |
+| `expireConversations()`                             | Deletes expired conversations (TTL: 15 minutes)       |
+| `simulateDispatch(text)`                            | Simulates an incoming message (for testing only)      |
+
+---
+
+## Strengths and limitations
+
 ### Strengths
-It's easy to set up and add as many handlers as you want. You don't have to worry about writing the bot request or response functions because they are already present.
-### Weaknesses
-Due to the use of many different services such as Google App Script, Google Spreadsheets and the Telegram server for bots, each response from the bot may take several seconds to process.
-For now, the supported Telegram Bot APIs are only for sending simple text messages.
+- No server to manage: everything runs on Google Apps Script for free.
+- Easy to extend: adding a new command takes one function and one line in `registerHandlers()`.
+- Multi-step conversations and Sheets logging are handled by the framework out of the box.
+- `GSTable` caches sheet headers in memory, reducing round-trips to the spreadsheet within the same execution.
+
+### Limitations
+- Each response may take a few seconds due to Apps Script cold starts and the latency between Google and Telegram services.
+- Conversations have a 15-minute TTL; once expired they are deleted automatically.
+- Apps Script enforces a 6-minute execution limit per invocation — not suitable for long-running tasks.
+
+---
 
 ## Acknowledgements
-A big thanks goes to [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot) for inspiring a lot for this repository.
 
-Another big thank you goes out to you for stopping by and reading the whole description (also somewhat poorly written) and leaving a star!
+Inspired by [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot).
