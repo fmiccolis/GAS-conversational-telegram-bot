@@ -11,34 +11,120 @@ Thanks to the integration between Google services, the bot supports multi-step c
 - Google Account
 - Telegram Account
 - Basic knowledge of JavaScript
+- [Node.js](https://nodejs.org/) (v14 or later)
 
 ---
 
 ## Installation
 
-1. Open Telegram and search for [@BotFather](https://t.me/BotFather). Create a new bot and note down the **token**.
-2. Send a `/start` message to your bot (it won't reply, but it initialises the conversation on Telegram's side).
-3. In Google Drive, create a folder named after your bot and inside it create a **Google Spreadsheet**. Note down the `spreadsheetId` from the URL: `https://docs.google.com/spreadsheets/d/<spreadsheetId>/edit`.
-4. Open the spreadsheet and go to **Extensions → Apps Script** to open the editor.
-5. Delete the default `.gs` file and paste the content of each file in this repository in the following order (the numbers in the filenames ensure correct loading order at deployment):
-   - `1-GSTable.gs`
-   - `2-TelegramModels.gs`
-   - `3-Bot.gs`
-   - `4-handlers.gs`
-   - `5-main.gs`
-6. Click **Deploy → New deployment**. Choose **Web app** as the type, set *Execute as:* **Me** and *Who has access:* **Anyone**. Confirm and note the `webAppId` from the resulting URL: `https://script.google.com/macros/s/<webAppId>/exec`.
-7. Go to **Project settings → Script properties** and add the following four properties:
+### 1. Create the Telegram bot
 
-   | Property       | Value                                                                                                          |
-   |----------------|----------------------------------------------------------------------------------------------------------------|
-   | `botToken`     | The token from step 1                                                                                          |
-   | `devList`      | Comma-separated list of developer Telegram IDs (use [@userinfobot](https://t.me/userinfobot) to get yours)    |
-   | `spreadsheetId`| The ID from step 3                                                                                             |
-   | `webAppId`     | The ID from step 6                                                                                             |
+Open Telegram and search for [@BotFather](https://t.me/BotFather). Create a new bot and note down the **token**. Then send a `/start` message to your bot (it won't reply, but it initialises the conversation on Telegram's side).
 
-8. From the Apps Script editor, run the function `initializeBot()`.
+### 2. Create the Google Spreadsheet
+
+In Google Drive, create a folder named after your bot and inside it create a **Google Spreadsheet**. Note down the `spreadsheetId` from the URL:
+```
+https://docs.google.com/spreadsheets/d/<spreadsheetId>/edit
+```
+
+### 3. Create the Apps Script project
+
+Open the spreadsheet and go to **Extensions → Apps Script**. From **Project settings**, copy the **Script ID**.
+
+### 4. Clone the repository and configure clasp
+
+```bash
+git clone https://github.com/your-username/your-repo.git
+cd your-repo
+
+# Install clasp globally
+npm install -g @google/clasp
+
+# Authenticate with your Google account
+clasp login
+```
+
+Enable the **Apps Script API** at [script.google.com/home/usersettings](https://script.google.com/home/usersettings).
+
+Then set up your local `.clasp.json`:
+
+```bash
+cp .clasp.json.example .clasp.json
+```
+
+Open `.clasp.json` and replace `YOUR_SCRIPT_ID_HERE` with the Script ID copied in step 3.
+
+### 5. Push the code
+
+```bash
+clasp push
+```
+
+### 6. Deploy as a Web App
+
+```bash
+clasp open
+```
+
+In the editor, click **Deploy → New deployment**. Choose **Web app** as the type, set *Execute as:* **Me** and *Who has access:* **Anyone**. Confirm and note the `webAppId` from the resulting URL:
+```
+https://script.google.com/macros/s/<webAppId>/exec
+```
+
+### 7. Set Script properties
+
+Go to **Project settings → Script properties** and add the following four properties:
+
+| Property        | Value                                                                                                       |
+|-----------------|-------------------------------------------------------------------------------------------------------------|
+| `botToken`      | The token from step 1                                                                                       |
+| `devList`       | Comma-separated list of developer Telegram IDs (use [@userinfobot](https://t.me/userinfobot) to get yours) |
+| `spreadsheetId` | The ID from step 2                                                                                          |
+| `webAppId`      | The ID from step 6                                                                                          |
+
+### 8. Initialise the bot
+
+From the Apps Script editor, run the function `initializeBot()`.
 
 Your conversational bot is now live.
+
+---
+
+## Development
+
+### Daily workflow
+
+```bash
+# Push changes to Apps Script after editing local files
+clasp push
+
+# Or enable watch mode for automatic push on every save
+clasp push --watch
+
+# Open the project in the online editor
+clasp open
+
+# View execution logs
+clasp logs
+```
+
+### Project structure
+
+```
+├── .clasp.json.example   ← template for local clasp configuration
+├── .claspignore          ← files excluded from clasp push
+├── appsscript.json       ← Apps Script project manifest
+├── .gitignore
+├── README.md
+├── 1-GSTable.js
+├── 2-TelegramModels.js
+├── 3-Bot.js
+├── 4-handlers.js
+└── 5-main.js
+```
+
+> **Note:** the numeric prefix in each filename ensures the correct loading order when the project is deployed on Apps Script.
 
 ---
 
@@ -50,11 +136,11 @@ The project is split into five files, each with a single responsibility:
 
 | File                  | Responsibility                                                                  |
 |-----------------------|---------------------------------------------------------------------------------|
-| `1-GSTable.gs`        | Google Sheets ORM: reads, writes, and caches sheet headers                      |
-| `2-TelegramModels.gs` | Data models: `ReceivedMessage`, `SentMessage`, `Conversation`                   |
-| `3-Bot.gs`            | Bot core: dispatcher, conversation routing, Telegram API calls                  |
-| `4-handlers.gs`       | Application handlers: commands, conversations, error handler                    |
-| `5-main.gs`           | Entry point: `doPost()` and `initializeBot()`                                  |
+| `1-GSTable.js`        | Google Sheets ORM: reads, writes, and caches sheet headers                      |
+| `2-TelegramModels.js` | Data models: `ReceivedMessage`, `SentMessage`, `Conversation`                   |
+| `3-Bot.js`            | Bot core: dispatcher, conversation routing, Telegram API calls                  |
+| `4-handlers.js`       | Application handlers: commands, conversations, error handler                    |
+| `5-main.js`           | Entry point: `doPost()` and `initializeBot()`                                  |
 
 Every incoming message follows this path:
 
@@ -116,8 +202,8 @@ Every function at `states[N].handler` receives `(bot, conversation, message)` an
 
 ```js
 payload.data = [
-  { type: "text",  value: "<user input>",  completed: true },
-  { type: "image", value: "<photo file_id>", completed: true },
+  { type: "text",  value: "<user input>",     completed: true },
+  { type: "image", value: "<photo file_id>",  completed: true },
   // ...
 ]
 ```
@@ -188,7 +274,7 @@ const reportHandler = {
 
 ### Registering handlers
 
-Use `bot.addHandler()` to register both command and conversation handlers. All handlers should be registered inside `registerHandlers()` in `4-handlers.gs`.
+Use `bot.addHandler()` to register both command and conversation handlers. All handlers should be registered inside `registerHandlers()` in `4-handlers.js`.
 
 **Signature:** `addHandler(command, description, type, callback)`
 
