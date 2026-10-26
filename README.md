@@ -183,7 +183,7 @@ A conversation handler is an object that manages a multi-step flow. The user's a
 
 | Property   | Type       | Description                                                                                        |
 |------------|------------|----------------------------------------------------------------------------------------------------|
-| `entry`    | `Function` | Called once when the conversation starts. Signature: `(bot, params, message) → void`.             |
+| `entry`    | `Function` | Called once when the conversation starts. Signature: `(bot, params, message) → any`. Return `false` or `-1` to not open the conversation (e.g. a precondition failed). |
 | `states`   | `Array`    | Ordered array of steps. Each element has a `type` (`"text"` or `"image"`) and a `handler`.        |
 | `final`    | `Function` | Called after all steps complete successfully. Signature: `(bot, payload, message) → void`.        |
 | `fallback` | `Object`   | Command that interrupts the conversation. Has two fields: `command` (string) and `handler` (function). |
