@@ -407,6 +407,10 @@ class TelegramBot {
    * If the handler has an `entry` function, a new multi-step conversation is
    * opened; otherwise the handler is called directly as a single-shot command.
    *
+   * `entry` can veto the conversation by returning `false` or `-1` (e.g. when
+   * a precondition is not met); any other return value, including undefined,
+   * opens it.
+   *
    * Silently ignores unknown commands (no handler registered).
    *
    * @param {Object} message - Raw Telegram message object.
@@ -420,9 +424,9 @@ class TelegramBot {
     const handlerObj = commandObj.callback;
 
     if (handlerObj.entry) {
-      const initPayload = this._generateInitialPayload(command);
-      this._startConversation(message, initPayload);
-      handlerObj.entry(this, params, message);
+      const shouldStart = handlerObj.entry(this, params, message);
+      if (shouldStart === false || shouldStart === -1) return;
+      this._startConversation(message, this._generateInitialPayload(command));
     } else {
       handlerObj(this, params, message);
     }
